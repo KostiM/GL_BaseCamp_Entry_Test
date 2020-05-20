@@ -1,8 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <stdint.h>
 #include <vector>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdint.h>
 using namespace std;
 
 int main(int argc, char* argv[])
@@ -14,42 +16,53 @@ int main(int argc, char* argv[])
     }
     uint16_t entnum = 0;
     ifstream file(argv[1], ios::in | ios::binary);
-    file.seekg(2, ios::beg);
-    file.read((char*)&entnum, 2);
-    entnum = entnum & 0x0000FFFF; // ignore 3rd & 4th byte
-    vector<unsigned> fsize(entnum);
-    vector<unsigned> foffset(entnum);
-    cout << "entnum = " << entnum << endl;
-    for (unsigned i = 0; i < entnum; ++i)
+    if (file.is_open())
     {
-        char buff[4];
-        file.read(buff, 3);
-        unsigned* buffp = reinterpret_cast<unsigned*>(buff);
-        fsize[i] = *buffp;
-        fsize[i] = (unsigned)(fsize[i] & 0x00FFFFFF); // ignore 4th byte
-        file.read(buff, 4);
-        foffset[i] = *buffp;
-    }
-    for (unsigned i = 0; i < entnum; ++i)
-    {
-        cout << "fsize = " << fsize[i] << endl;
-        cout << "foffset = " << foffset[i] << endl;
-        file.seekg(foffset[i] + fsize[i], ios::beg);
-        string filename;
-        getline(file, filename, '\0');
-        if (argc == 3) {
-            filename = string(argv[2]) + '/' + filename;
+        file.seekg(2, ios::beg);
+        file.read((char*)&entnum, 2);
+        entnum = entnum & 0x0000FFFF; // ignore 3rd & 4th byte
+        vector<unsigned> fsize(entnum);
+        vector<unsigned> foffset(entnum);
+        for (unsigned i = 0; i < entnum; ++i)
+        {
+            char buff[4];
+            file.read(buff, 3);
+            unsigned* buffp = reinterpret_cast<unsigned*>(buff);
+            fsize[i] = *buffp;
+            fsize[i] = (unsigned)(fsize[i] & 0x00FFFFFF); // ignore 4th byte
+            file.read(buff, 4);
+            foffset[i] = *buffp;
         }
-        cout << "finename = " << filename << endl;
-        ofstream newfile(filename, ios::out | ios::binary);
-        file.seekg(foffset[i], ios::beg);
-        char* buff = new char[fsize[i]];
-        file.read(buff, fsize[i]);
-        newfile.write(buff, fsize[i]);
-        delete[] buff;
-
-        newfile.close();
+        for (unsigned i = 0; i < entnum; ++i)
+        {
+            file.seekg(foffset[i]+fsize[i], ios::beg);
+            string filename;
+            getline(file, filename, '\0');
+            if (argc == 3) 
+            {
+                filename = argv[2] + filename;
+            }
+            if (filename.find('/') != string::npos)
+            {
+                mkdir(filename.substr(0, filename.find_last_of("/")).c_str(),0777);
+            }
+            
+            ofstream newfile(filename, ios::out | ios::binary);
+            if (newfile.is_open())
+            {
+                file.seekg(foffset[i],ios::beg);
+                string buff(fsize[i],'\0');
+                file.read((char*)buff.c_str(), fsize[i]);
+                newfile.write((char*)buff.c_str(), fsize[i]);
+                newfile.close();
+            }
+        }
+        file.close();
     }
-    file.close();
+    else 
+    {
+        cerr << "File read error."<<endl;
+        exit(1);
+    }
     return 0;
 }
