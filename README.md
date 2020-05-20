@@ -8,4 +8,5 @@
 - **Task_4_File_Extractor** contain source file "FSIE.cpp" that implements 4th task:
 > This program extracts files and directories from .img-file to current or define directory.
 
+## Repositiry structure:
 ![GitHub Logo](/images/logo.png)
