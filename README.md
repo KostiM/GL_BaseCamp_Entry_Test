@@ -9,4 +9,3 @@
 > This program extracts files and directories from .img-file to current or define directory.
 
 ![GitHub Logo](/images/logo.png)
-Format: ![Alt Text](https://github.com/KostiM/GL_BaseCamp_Entry_Test/blob/image/images/logo.png)
