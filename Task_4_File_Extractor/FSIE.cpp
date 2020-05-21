@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
@@ -14,39 +13,50 @@ int main(int argc, char* argv[])
         cerr << "The program should be run with command line parameter." << endl;
         exit(1);
     }
-    uint16_t entnum = 0;
+    
     ifstream file(argv[1], ios::in | ios::binary);
     if (file.is_open())
     {
-        file.seekg(2, ios::beg);
-        file.read((char*)&entnum, 2);
-        entnum = entnum & 0x0000FFFF; // ignore 3rd & 4th byte
-        vector<unsigned> fsize(entnum);
-        vector<unsigned> foffset(entnum);
+        
+        file.seekg(2, ios::beg); // skip fist two bytes which describe header::vermagic
+        uint16_t entnum = 0; 
+        file.read((char*)&entnum, 2); // read 2 bytes to header::entnum 
+        unsigned* fsize = new unsigned[entnum];
+        unsigned* foffset = new unsigned[entnum];
+        string dirname("");
+        if (argc == 3)
+        {
+            dirname = argv[2];
+            if (dirname.find('/', dirname.size()-1) == string::npos)
+            {
+                dirname += "/";
+            }
+            mkdir(dirname.c_str(), 0777);
+        }
+        //read FENTRY TABLEs for each file
         for (unsigned i = 0; i < entnum; ++i)
         {
             char buff[4];
-            file.read(buff, 3);
+            file.read(buff, 3); // read 3 bytes that describe fsize
             unsigned* buffp = reinterpret_cast<unsigned*>(buff);
             fsize[i] = *buffp;
-            fsize[i] = (unsigned)(fsize[i] & 0x00FFFFFF); // ignore 4th byte
-            file.read(buff, 4);
+            fsize[i] = (*buffp & 0x00FFFFFF); // erase 4th byte
+            file.read(buff, 4); // read 4 bytes that describe foffset
             foffset[i] = *buffp;
         }
         for (unsigned i = 0; i < entnum; ++i)
         {
             file.seekg(foffset[i]+fsize[i], ios::beg);
             string filename;
-            getline(file, filename, '\0');
-            if (argc == 3) 
+            getline(file, filename, '\0'); // read file path
+            if (dirname.size())
             {
-                filename = argv[2] + filename;
+                filename = dirname + filename; // change file name if destination directory entered   
             }
             if (filename.find('/') != string::npos)
             {
                 mkdir(filename.substr(0, filename.find_last_of("/")).c_str(),0777);
             }
-            
             ofstream newfile(filename, ios::out | ios::binary);
             if (newfile.is_open())
             {
@@ -57,6 +67,8 @@ int main(int argc, char* argv[])
                 newfile.close();
             }
         }
+        delete[] fsize;
+        delete[] foffset;
         file.close();
     }
     else 
